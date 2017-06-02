@@ -77,8 +77,8 @@ unexpectedCharParser c =
 valueParser ::
   a
   -> Parser a
-valueParser =
-  error "todo: Course.Parser#valueParser"
+valueParser a = P (\i -> Result i a)
+  --error "todo: Course.Parser#valueParser"
 
 -- | Return a parser that always fails with the given error.
 --
@@ -86,8 +86,8 @@ valueParser =
 -- True
 failed ::
   Parser a
-failed =
-  error "todo: Course.Parser#failed"
+failed = P(\_ -> ErrorResult Failed)
+  --error "todo: Course.Parser#failed"
 
 -- | Return a parser that succeeds with a character off the input or fails with an error if the input is empty.
 --
@@ -98,8 +98,21 @@ failed =
 -- True
 character ::
   Parser Char
-character =
-  error "todo: Course.Parser#character"
+character = P(\a -> case a of
+                      Nil -> ErrorResult UnexpectedEof
+                      h:.t -> Result t h)
+
+instance Functor ParseResult where
+  (<$>) ::
+    (a -> b)
+    -> ParseResult a
+    -> ParseResult b
+  _ <$> ErrorResult e = ErrorResult e
+  f <$> Result i a = 
+    Result i (f a)
+
+
+  --error "todo: Course.Parser#character"
 
 -- | Return a parser that maps any succeeding result with the given function.
 --
@@ -112,8 +125,8 @@ mapParser ::
   (a -> b)
   -> Parser a
   -> Parser b
-mapParser =
-  error "todo: Course.Parser#mapParser"
+mapParser f (P x) = P ((<$>) f . x)
+  --error "todo: Course.Parser#mapParser"
 
 -- | This is @mapParser@ with the arguments flipped.
 -- It might be more helpful to use this function if you prefer this argument order.
@@ -149,8 +162,9 @@ bindParser ::
   (a -> Parser b)
   -> Parser a
   -> Parser b
-bindParser =
-  error "todo: Course.Parser#bindParser"
+bindParser f (P p) = P (\i -> case p i of 
+                                  ErrorResult e -> ErrorResult e
+                                  Result j a -> parse(f a) j)
 
 -- | This is @bindParser@ with the arguments flipped.
 -- It might be more helpful to use this function if you prefer this argument order.
@@ -179,8 +193,8 @@ flbindParser =
   Parser a
   -> Parser b
   -> Parser b
-(>>>) =
-  error "todo: Course.Parser#(>>>)"
+(>>>) = lift2(flip const)
+  --error "todo: Course.Parser#(>>>)"
 
 -- | Return a parser that tries the first parser for a successful value.
 --
@@ -203,8 +217,9 @@ flbindParser =
   Parser a
   -> Parser a
   -> Parser a
-(|||) =
-  error "todo: Course.Parser#(|||)"
+P p1 ||| P p2 = P(\i -> case p1 i of
+                          ErrorResult _ -> p2 i
+                          r@(Result _ _) -> r)
 
 infixl 3 |||
 
